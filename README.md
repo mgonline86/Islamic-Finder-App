@@ -15,6 +15,10 @@ Follow these steps to run the app successfully:
 ```
 pip install requests
 ```
+   and
+```
+pip install tkcalendar
+```
 
 3. Start-up the app by running:
 
