@@ -1,9 +1,10 @@
+from calendar import firstweekday
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
 from tkinter.font import BOLD
 import requests, csv, re, sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter.filedialog import asksaveasfile
 from tkcalendar import *
 
@@ -12,7 +13,7 @@ user_inputs = {
     'country': 'Not Selected',
     'city': 'Not Selected',
     'from_date': datetime.today().date(),
-    'to_date': datetime.today().date() + timedelta(days=365),
+    'to_date': datetime.today().date(),
     'method': 'Not Selected'
 }
 
@@ -59,10 +60,22 @@ def create_csv_file(file_name, data):
 # Getting Data from API
 def main():
     try:
+        #Handling no selection
+        not_selected_list = []
+        for i,d in user_inputs.items():
+            if d == 'Not Selected':
+                not_selected_list.append(i.capitalize())
+        if len(not_selected_list) > 0:
+            error_lines = ''
+            for e in not_selected_list:
+                error_lines = error_lines + '\nThe ' + e
+            messagebox.showerror("Error", f'Please make selection for:{error_lines}')
+            return
         # Getting filepath from user
         files = [('Comma-separated values', '*.csv')]
         file_name = asksaveasfile(filetypes=files, defaultextension=files)
-
+        if file_name is None:
+            return
         country = user_inputs['country']
         city = user_inputs['city']
         from_date = user_inputs['from_date']
@@ -154,7 +167,11 @@ def fetch_cities():
         if len(cities_list) < 1:
             cities_combo['value'] = []
             cities_combo.set('')
-            messagebox.showerror("Error", 'Sorry, No cities Found')
+            country_search_entry.delete(0, END)
+            country_search_entry.insert(END, '')
+            messagebox.showerror("Error", f'Sorry, No cities Found for {user_inputs["country"]}')
+            user_inputs['country'] = 'Not Selected'
+            country_input_label['text'] =f'Country-->   {user_inputs["country"]}'
             return 
         cities_combo['value'] = cities_list
         city_search_result_box.delete(0, END)
@@ -168,12 +185,16 @@ def tab_change_handle(self):
     current_tab_index = main_container.index(main_container.select())
     if current_tab_index == 4:
         next_btn['state'] = 'disabled'
+        next_btn['cursor'] = 'arrow'
     else:
         next_btn['state'] = 'normal'
+        next_btn['cursor'] = 'hand2'
     if current_tab_index == 0:
         prev_btn['state'] = 'disabled'
+        prev_btn['cursor'] = 'arrow'
     else:
         prev_btn['state'] = 'normal'
+        prev_btn['cursor'] = 'hand2'
 
 def next():
     current_tab_index = main_container.index(main_container.select())
@@ -221,12 +242,11 @@ def countries_handle(self):
         country_name = country_search_result_box.get(curent_selection_index)
         country_search_entry.delete(0, END)
         country_search_entry.insert(0, country_name)
-        print(country_name)
         user_inputs['country']= country_name
-        country_input_label['text'] =f'Country--> {user_inputs["country"]}'
+        country_input_label['text'] =f'Country-->   {user_inputs["country"]}'
         user_inputs['city']= 'Not Selected'
         city_search_entry.delete(0, END)
-        city_input_label['text'] =f'City--> {user_inputs["city"]}'
+        city_input_label['text'] =f'City-->   {user_inputs["city"]}'
         fetch_cities()   
     
 def cities_handle(self):
@@ -235,22 +255,29 @@ def cities_handle(self):
         city_name = city_search_result_box.get(curent_selection_index)
         city_search_entry.delete(0, END)
         city_search_entry.insert(0, city_name)
-        print(city_name)
         user_inputs['city']= city_name
-        city_input_label['text'] =f'City--> {user_inputs["city"]}'
+        city_input_label['text'] =f'City-->   {user_inputs["city"]}'
 
 def from_date_handle(self):
+    if from_date_entry.get_date() > to_date_entry.get_date():
+        to_date_entry.set_date(from_date_entry.get_date())
+        user_inputs['to_date']= from_date_entry.get_date()
+        to_date_input_label['text'] =f'To-->   {user_inputs["to_date"]}'
     user_inputs['from_date']= from_date_entry.get_date()
-    from_date_input_label['text'] =f'From--> {user_inputs["from_date"]}'
+    from_date_input_label['text'] =f'From-->   {user_inputs["from_date"]}'
 
 def to_date_handle(self):
+    prev_to_date = user_inputs['to_date']
+    if from_date_entry.get_date() > to_date_entry.get_date():
+        to_date_entry.set_date(prev_to_date)
+        messagebox.showerror("Error", "The End date can't be earlier than Starting date!")
+        return
     user_inputs['to_date']= to_date_entry.get_date()
-    to_date_input_label['text'] =f'To--> {user_inputs["to_date"]}'
+    to_date_input_label['text'] =f'To-->   {user_inputs["to_date"]}'
 
 def method_handle(e):
-    print(e)
     user_inputs['method']= e
-    method_input_label['text'] =f'Method--> {user_inputs["method"]}'
+    method_input_label['text'] =f'Method-->   {user_inputs["method"]}'
 
 # Countries Tab Elements
 def countries_search(var):
@@ -269,11 +296,19 @@ countries_label = Label(countries_tab, text='Choose Your Country',font=("Arial",
 countries_label.pack()
 country_search_var = StringVar()
 country_search_var.trace("w", lambda name, index,mode, var=country_search_var: countries_search(var))
-country_search_entry = Entry(countries_tab, textvariable=country_search_var)
+country_search_frame = Frame(countries_tab)
+country_search_frame.pack()
+country_search_frame_l = Frame(country_search_frame)
+country_search_frame_l.pack(side= LEFT ,anchor=E)
+country_search_frame_r = Frame(country_search_frame)
+country_search_frame_r.pack(side= RIGHT ,anchor=W)
+country_search_label = Label(country_search_frame_l, text='Search')
+country_search_label.pack()
+country_search_entry = Entry(country_search_frame_r, textvariable=country_search_var)
 country_search_entry.pack(pady=30)
 country_search_result_box = Listbox(countries_tab, cursor='hand2', selectmode=SINGLE)
 country_search_result_box.bind('<<ListboxSelect>>', countries_handle)
-country_search_result_box.pack(side = LEFT, fill = BOTH, expand=True)
+country_search_result_box.pack(side = LEFT, fill = BOTH, expand=True, padx=30)
 scrollbar = Scrollbar(countries_tab)
 scrollbar.pack(side = RIGHT, fill = BOTH)
 country_search_result_box.config(yscrollcommand = scrollbar.set)
@@ -299,11 +334,19 @@ cities_label.pack()
 cities_combo = ttk.Combobox(cities_tab, state='readonly', value=[])
 city_search_var = StringVar()
 city_search_var.trace("w", lambda name, index,mode, var=city_search_var: search(var))
-city_search_entry = Entry(cities_tab, textvariable=city_search_var)
+city_search_frame = Frame(cities_tab)
+city_search_frame.pack()
+city_search_frame_l = Frame(city_search_frame)
+city_search_frame_l.pack(side= LEFT ,anchor=E)
+city_search_frame_r = Frame(city_search_frame)
+city_search_frame_r.pack(side= RIGHT ,anchor=W)
+city_search_label = Label(city_search_frame_l, text='Search')
+city_search_label.pack()
+city_search_entry = Entry(city_search_frame_r, textvariable=city_search_var)
 city_search_entry.pack(pady=30)
 city_search_result_box = Listbox(cities_tab, cursor='hand2', selectmode=SINGLE)
 city_search_result_box.bind('<<ListboxSelect>>', cities_handle)
-city_search_result_box.pack(side = LEFT, fill = BOTH, expand=True)
+city_search_result_box.pack(side = LEFT, fill = BOTH, expand=True, padx=30)
 scrollbar = Scrollbar(cities_tab)
 scrollbar.pack(side = RIGHT, fill = BOTH)
 city_search_result_box.config(yscrollcommand = scrollbar.set)
@@ -318,7 +361,7 @@ period_left_frame.pack(side=LEFT)
 period_left_frame.pack_propagate(0)
 from_label = Label(period_left_frame, text='From',font=("Arial", 18), fg='blue')
 from_label.pack()
-from_date_entry = DateEntry(period_left_frame)
+from_date_entry = DateEntry(period_left_frame, state='readonly', date_pattern='dd/mm/y', firstweekday='sunday', weekenddays=[6,6], calendar_cursor='hand2')
 from_date_entry.bind('<<DateEntrySelected>>', from_date_handle)
 from_date_entry.pack()
 from_date_entry.set_date(datetime.today().date())
@@ -327,10 +370,10 @@ period_right_frame.pack(side=RIGHT)
 period_right_frame.pack_propagate(0)
 to_label = Label(period_right_frame, text='To',font=("Arial", 18), fg='blue')
 to_label.pack()
-to_date_entry = DateEntry(period_right_frame)
+to_date_entry = DateEntry(period_right_frame, state='readonly', date_pattern='dd/mm/y', firstweekday='sunday', weekenddays=[6,6], calendar_cursor='hand2')
 to_date_entry.bind('<<DateEntrySelected>>', to_date_handle)
 to_date_entry.pack()
-to_date_entry.set_date(datetime.today().date() + timedelta(days=365))
+to_date_entry.set_date(datetime.today().date())
 
 # Method Tab Elements
 methods_list = [
@@ -353,31 +396,34 @@ method_label = Label(method_tab, text='Choose The Method',font=("Arial", 18), fg
 method_label.pack()
 method_variable = StringVar()
 for m in methods_list:
-    Radiobutton( method_tab, text=m, value=m, variable=method_variable, tristatevalue="x", cursor='hand2', command= lambda: method_handle(method_variable.get())).pack(anchor=W)
+    Radiobutton( method_tab, text=m, value=m, variable=method_variable, tristatevalue="x", cursor='hand2',
+    command= lambda: method_handle(method_variable.get()), padx=30).pack(anchor=W)
 
 # Download Tab Elements
-inputs_frame = Frame(download_tab, bg='red')
+download_label = Label(download_tab, text='Check your Entries',font=("Arial", 18), fg='blue')
+download_label.pack()
+inputs_frame = Frame(download_tab, pady=30)
 inputs_frame.pack()
-country_input_label = Label(inputs_frame, text=f'Country--> {user_inputs["country"]}', font=("Arial", 12), width=500, padx=30)
-country_input_label.pack()
-city_input_label = Label(inputs_frame, text=f'City--> {user_inputs["city"]}', font=("Arial", 12), width=500, padx=30)
-city_input_label.pack()
-from_date_input_label = Label(inputs_frame, text=f'From--> {user_inputs["from_date"]}', font=("Arial", 12), width=500, padx=30)
-from_date_input_label.pack()
-to_date_input_label = Label(inputs_frame, text=f'To--> {user_inputs["to_date"]}', font=("Arial", 12), width=500, padx=30)
-to_date_input_label.pack()
-method_input_label = Label(inputs_frame, text=f'Method--> {user_inputs["method"]}', font=("Arial", 12), width=500, padx=30)
-method_input_label.pack()
-downloadBtn = Button(download_tab, bg="green", fg="white", height=1, width=10, font=("Arial", 15), text='Download',command=main)
+country_input_label = Label(inputs_frame, text=f'Country-->   {user_inputs["country"]}', font=("Arial", 12))
+country_input_label.pack(anchor=W)
+city_input_label = Label(inputs_frame, text=f'City-->   {user_inputs["city"]}', font=("Arial", 12))
+city_input_label.pack(anchor=W)
+from_date_input_label = Label(inputs_frame, text=f'From-->   {user_inputs["from_date"]}', font=("Arial", 12))
+from_date_input_label.pack(anchor=W)
+to_date_input_label = Label(inputs_frame, text=f'To-->   {user_inputs["to_date"]}', font=("Arial", 12))
+to_date_input_label.pack(anchor=W)
+method_input_label = Label(inputs_frame, text=f'Method-->   {user_inputs["method"]}', font=("Arial", 12))
+method_input_label.pack(anchor=W)
+downloadBtn = Button(download_tab, bg="green", fg="white", height=1, width=10, font=("Arial", 15), cursor='hand2', text='Download',command=main)
 downloadBtn.pack()
 
 left_frame = Frame(root)
 left_frame.pack(side=LEFT)
 right_frame = Frame(root)
 right_frame.pack(side=RIGHT)
-prev_btn = Button(left_frame, text='Previous', command=prev, state='disabled')
+prev_btn = Button(left_frame, text='Previous', command=prev, state='disabled', bg="white", height=1, width=10, font=("Arial", 15), cursor='hand2')
 prev_btn.pack(pady=10, padx=50)
-next_btn = Button(right_frame, text='Next', command=next)
+next_btn = Button(right_frame, text='Next', command=next, bg="white", height=1, width=10, font=("Arial", 15), cursor='hand2')
 next_btn.pack(pady=10, padx=50)
 
 root.resizable(0, 0)
