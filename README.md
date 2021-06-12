@@ -28,14 +28,27 @@ python app.py
 
 
 to add it to google calendar
+
 1- settings 
+
 2- add calender (from left panel)
+
 3- creat new calender 
+
 4- name the calendar , then creat it 
+
 5- import & export (from the left calendar)
+
 6- select the previously named calender 
+
 7- import the csv generated file 
 
 
+
 to remove the calender ( in case of any error )
-1- just remove the created calender or hide it 
+
+- just remove the created calender or hide it 
+
+- or from android device ( open the android calender that syncronised with gogle calender and use the attached video method 
+
+
