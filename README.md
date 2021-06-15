@@ -1,6 +1,6 @@
-# Welcome to Mawakeet App
+# Welcome to Salawat Calendar App
 
-This Python App Creates custom Islamic prayer times calendar in .csv format that can be imported to google calendar.
+This is a Python App with a Tkinter GUI to Create custom Islamic prayer times calendar in .csv format that can be imported to your google calendar.
 
 ## Starting The App
 
@@ -27,7 +27,7 @@ python app.py
 ```
 
 
-to add it to google calendar
+## Add it to google calendar
 
 1- settings 
 
@@ -45,10 +45,12 @@ to add it to google calendar
 
 
 
-to remove the calender ( in case of any error )
+## to remove the calender ( in case of any error )
 
 - just remove the created calender or hide it 
 
-- or from android device ( open the android calender that syncronised with gogle calender and use the attached video method 
+- or from android device ( open the android calender that syncronised with google calender and use the attached video method in the repo.
 
-
+## Acknowledgements
+* Countries and Cities API used from [countriesnow.space](https://countriesnow.space/)
+* Prayer Times API used from [aladhan.com](https://aladhan.com/)

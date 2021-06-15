@@ -4,7 +4,7 @@ from tkinter import messagebox
 from tkinter import ttk
 from tkinter.font import BOLD
 import requests, csv, re, sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from tkinter.filedialog import asksaveasfile
 from tkcalendar import *
 
@@ -14,6 +14,7 @@ user_inputs = {
     'city': 'Not Selected',
     'from_date': datetime.today().date(),
     'to_date': datetime.today().date(),
+    'duration': 0,
     'method': 'Not Selected'
 }
 
@@ -31,7 +32,7 @@ def format_time(time):
     time = time.strftime("%H:%M")
     return time
 
-def row_creator(d, prayer):
+def row_creator(d, prayer, duration):
     row = []
     row.append(prayer)
     start_date = d['date']['gregorian']['date']
@@ -39,15 +40,20 @@ def row_creator(d, prayer):
     row.append(start_date)
     start_time = d['timings'][prayer]
     start_time = format_time(start_time)
+    end_time = datetime.strptime(start_time, '%H:%M')
+    if end_time.hour >= 23 and duration > (59 - end_time.minute):
+        duration = 59 - end_time.minute
+    end_time = end_time + timedelta(minutes=duration)
+    end_time = end_time.strftime("%H:%M")
     row.append(start_time)
+    row.append(end_time)
     return row
 
 
 # Creating csv file:
 def create_csv_file(file_name, data):
-    header = ['Subject', 'Start Date', 'Start Time']
-    # header = ['Subject', 'Start Date', 'End Date', 'Start Time', 'End Time']
-
+    header = ['Subject', 'Start Date', 'Start Time', 'End Time']
+    
     with open(file_name.name, 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
 
@@ -80,6 +86,7 @@ def main():
         city = user_inputs['city']
         from_date = user_inputs['from_date']
         to_date = user_inputs['to_date']
+        duration = int(user_inputs['duration'])
         method = int(user_inputs['method'].split(' -')[0])
         years = [*range(int(from_date.year), int(to_date.year)+1, 1)]
         prayer_times=[]
@@ -87,10 +94,7 @@ def main():
             response = requests.get(f'http://api.aladhan.com/v1/calendarByCity?city={city}&country={country}&method={method}&year={y}&annual=true', timeout=5)
             response = response.json()['data']
             prayer_times.append(response)
-        next_month = requests.get(f'http://api.aladhan.com/v1/calendarByCity?city={city}&country={country}&method={method}&year={to_date.year+1}&annual=true', timeout=5)
-        next_month = next_month.json()
-        last_prayer_time = next_month['data']['1'][0]['timings']['Fajr']
-        data = structure_data(prayer_times, from_date, to_date, last_prayer_time)
+        data = structure_data(prayer_times, from_date, to_date, duration)
         create_csv_file(file_name, data)
         messagebox.showinfo("Saved", f'File saved at\n{file_name.name}')
         sys.exit("File Saved")
@@ -99,21 +103,21 @@ def main():
         return 
 
 # Structuring data for csv file    
-def structure_data(prayer_times, from_date, to_date, last_prayer_time):
+def structure_data(prayer_times, from_date, to_date, duration):
     all_days_rows_list=[]
     prayers = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
-    def structure_month(prayer_times, from_date, to_date, last_prayer_time):
+    def structure_month(prayer_times, from_date, to_date):
         for d in prayer_times:
             current_date = d['date']['gregorian']['date']
             current_date = datetime.strptime(current_date, '%d-%m-%Y').date()
             if current_date >= from_date and current_date <= to_date:
                 for prayer in prayers:
-                    all_days_rows_list.append(row_creator(d, prayer))
+                    all_days_rows_list.append(row_creator(d, prayer, duration))
 
     monthes = [*range(1, 13, 1)]
     for p in prayer_times:
         for m in monthes:
-            structure_month(p[str(m)], from_date, to_date, last_prayer_time)
+            structure_month(p[str(m)], from_date, to_date)
     
     return(all_days_rows_list)
 
@@ -142,7 +146,7 @@ def fetch_countries():
 
 
 root = Tk()
-root.title('Islamic Finder')
+root.title('Salawaat Calendar')
 
 # Gets the requested values of the height and widht.
 windowWidth = root.winfo_reqwidth()
@@ -157,22 +161,19 @@ root.geometry("+{}+{}".format(positionRight, positionDown))
 
 def fetch_cities():
     try:
-        # user_inputs['country'] = countries_combo.get()
         url = 'https://countriesnow.space/api/v0.1/countries/cities'
         body = {
             "country": user_inputs['country']
         }
         cities_res = requests.post(url, data = body,timeout=5)
-        cities_list = cities_res.json()['data']
+        cities_res = cities_res.json()
+        # if there is no cities data we use the country as the city
+        if 'data' not in cities_res:
+            cities_list = [user_inputs['country']]
+        else:
+            cities_list = cities_res['data']
         if len(cities_list) < 1:
-            cities_combo['value'] = []
-            cities_combo.set('')
-            country_search_entry.delete(0, END)
-            country_search_entry.insert(END, '')
-            messagebox.showerror("Error", f'Sorry, No cities Found for {user_inputs["country"]}')
-            user_inputs['country'] = 'Not Selected'
-            country_input_label['text'] =f'Country-->   {user_inputs["country"]}'
-            return 
+            cities_list = [user_inputs['country']]
         cities_combo['value'] = cities_list
         city_search_result_box.delete(0, END)
         for i in cities_list:
@@ -205,10 +206,10 @@ def prev():
     main_container.select(current_tab_index-1)
 
 # Header Elements
-logoLabel = Label(root, text='Islamic Finder',font=("Arial", 30, BOLD), fg='brown')
+logoLabel = Label(root, text='Salawaat Calendar',font=("Arial", 30, BOLD), fg='brown')
 logoLabel.pack()
 
-sloganLabel = Label(root, text='Custom Prayer Times Calendar')
+sloganLabel = Label(root, text='Powdered by aladhan.com and countriesnow.space APIs')
 sloganLabel.pack()
 
 # Tabs Container
@@ -274,6 +275,10 @@ def to_date_handle(self):
         return
     user_inputs['to_date']= to_date_entry.get_date()
     to_date_input_label['text'] =f'To-->   {user_inputs["to_date"]}'
+
+def duration_handle(self):
+    user_inputs['duration']= duration_combo.get()
+    duration_input_label['text'] =f'Duration-->   {user_inputs["duration"]} min'
 
 def method_handle(e):
     user_inputs['method']= e
@@ -356,24 +361,40 @@ scrollbar.config(command = city_search_result_box.yview)
 # Period Tab Elements
 period_label = Label(period_tab, text='Choose The Period',font=("Arial", 18), fg='blue')
 period_label.pack()
-period_left_frame = Frame(period_tab, padx=30, width=250, height=250)
+period_top_1st_frame = Frame(period_tab, pady=30, width=250, height=250)
+period_top_1st_frame.pack()
+period_left_frame = Frame(period_top_1st_frame, padx=30)
 period_left_frame.pack(side=LEFT)
-period_left_frame.pack_propagate(0)
 from_label = Label(period_left_frame, text='From',font=("Arial", 18), fg='blue')
 from_label.pack()
 from_date_entry = DateEntry(period_left_frame, state='readonly', date_pattern='dd/mm/y', firstweekday='sunday', weekenddays=[6,6], calendar_cursor='hand2')
 from_date_entry.bind('<<DateEntrySelected>>', from_date_handle)
 from_date_entry.pack()
 from_date_entry.set_date(datetime.today().date())
-period_right_frame = Frame(period_tab, padx=30, width=250, height=250)
+period_right_frame = Frame(period_top_1st_frame, padx=30)
 period_right_frame.pack(side=RIGHT)
-period_right_frame.pack_propagate(0)
 to_label = Label(period_right_frame, text='To',font=("Arial", 18), fg='blue')
 to_label.pack()
 to_date_entry = DateEntry(period_right_frame, state='readonly', date_pattern='dd/mm/y', firstweekday='sunday', weekenddays=[6,6], calendar_cursor='hand2')
 to_date_entry.bind('<<DateEntrySelected>>', to_date_handle)
 to_date_entry.pack()
 to_date_entry.set_date(datetime.today().date())
+duration_label = Label(period_tab, text='Prayer Duration',font=("Arial", 18), fg='blue')
+duration_label.pack()
+duration_frame = Frame(period_tab)
+duration_frame.pack()
+duration_frame_l = Frame(duration_frame)
+duration_frame_l.pack(side= LEFT ,anchor=E)
+duration_frame_r = Frame(duration_frame)
+duration_frame_r.pack(side= RIGHT ,anchor=W)
+duration_label = Label(duration_frame_r, text='min')
+duration_label.pack()
+minutes = [*range(0, 61, 1)]
+duration_combo = ttk.Combobox(duration_frame_l, value=minutes, state='readonly')
+duration_combo.current(0)
+duration_combo.bind('<<ComboboxSelected>>', duration_handle)
+duration_combo.pack()
+
 
 # Method Tab Elements
 methods_list = [
@@ -412,6 +433,8 @@ from_date_input_label = Label(inputs_frame, text=f'From-->   {user_inputs["from_
 from_date_input_label.pack(anchor=W)
 to_date_input_label = Label(inputs_frame, text=f'To-->   {user_inputs["to_date"]}', font=("Arial", 12))
 to_date_input_label.pack(anchor=W)
+duration_input_label = Label(inputs_frame, text=f'Duration-->   {user_inputs["duration"]} min', font=("Arial", 12))
+duration_input_label.pack(anchor=W)
 method_input_label = Label(inputs_frame, text=f'Method-->   {user_inputs["method"]}', font=("Arial", 12))
 method_input_label.pack(anchor=W)
 downloadBtn = Button(download_tab, bg="green", fg="white", height=1, width=10, font=("Arial", 15), cursor='hand2', text='Download',command=main)
