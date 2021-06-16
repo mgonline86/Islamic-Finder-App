@@ -66,6 +66,7 @@ def create_csv_file(file_name, data):
 # Getting Data from API
 def main():
     try:
+        downloadBtn['text'] = 'Loading...'
         #Handling no selection
         not_selected_list = []
         for i,d in user_inputs.items():
@@ -76,11 +77,13 @@ def main():
             for e in not_selected_list:
                 error_lines = error_lines + '\nThe ' + e
             messagebox.showerror("Error", f'Please make selection for:{error_lines}')
+            downloadBtn['text'] = 'Download'
             return
         # Getting filepath from user
         files = [('Comma-separated values', '*.csv')]
         file_name = asksaveasfile(filetypes=files, defaultextension=files)
         if file_name is None:
+            downloadBtn['text'] = 'Download'
             return
         country = user_inputs['country']
         city = user_inputs['city']
@@ -100,6 +103,7 @@ def main():
         sys.exit("File Saved")
     except (requests.ConnectionError, requests.Timeout) as exception:
         messagebox.showerror("Error", 'Check your internet connection\nthen try again.')
+        downloadBtn['text'] = 'Download'
         return 
 
 # Structuring data for csv file    
