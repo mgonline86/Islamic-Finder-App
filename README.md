@@ -1,3 +1,6 @@
+This App is used in the website http://salawat-calendar.herokuapp.com/
+
+
 # Welcome to Salawat Calendar App
 
 This is a Python App with a Tkinter GUI to Create custom Islamic prayer times calendar in .csv format that can be imported to your google calendar.
